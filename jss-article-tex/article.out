@@ -1,0 +1,17 @@
+\BOOKMARK [1][-]{Section.0.Introduction: Count data regression in R.1}{Introduction:\040Count\040data\040regression\040in\040R}{}% 1
+\BOOKMARK [1][-]{Section.1.The Causal Effect Model.1}{The\040Causal\040Effect\040Model}{}% 2
+\BOOKMARK [2][-]{Subsection.2.0.Survivor Average Causal Effect(SACE).2}{Survivor\040Average\040Causal\040Effect\(SACE\)}{Section.1.The Causal Effect Model.1}% 3
+\BOOKMARK [2][-]{Subsection.2.1.Assumptions of the Model.2}{Assumptions\040of\040the\040Model}{Section.1.The Causal Effect Model.1}% 4
+\BOOKMARK [2][-]{Subsection.2.2.Identification of SACE.2}{Identification\040of\040SACE}{Section.1.The Causal Effect Model.1}% 5
+\BOOKMARK [2][-]{Subsection.2.3.Model Parameterization.2}{Model\040Parameterization}{Section.1.The Causal Effect Model.1}% 6
+\BOOKMARK [1][-]{Section.2.Parameter Estimation.1}{Parameter\040Estimation}{}% 7
+\BOOKMARK [2][-]{Subsection.3.0.Data.2}{Data}{Section.2.Parameter Estimation.1}% 8
+\BOOKMARK [2][-]{Subsection.3.1.Parameters.2}{Parameters}{Section.2.Parameter Estimation.1}% 9
+\BOOKMARK [2][-]{Subsection.3.2.Estimating the Parameters.2}{Estimating\040the\040Parameters}{Section.2.Parameter Estimation.1}% 10
+\BOOKMARK [3][-]{Subsubsection.3.3.0.Estimating $\alpha _1$.3}{Estimating\0401}{Subsection.3.2.Estimating the Parameters.2}% 11
+\BOOKMARK [3][-]{Subsubsection.3.3.1.Estimating $\alpha _2$.3}{Estimating\0402}{Subsection.3.2.Estimating the Parameters.2}% 12
+\BOOKMARK [3][-]{Subsubsection.3.3.2.Estimating $\beta $ and $\gamma $.3}{Estimating\040\040and\040}{Subsection.3.2.Estimating the Parameters.2}% 13
+\BOOKMARK [1][-]{Section.3.Illustrations.1}{Illustrations}{}% 14
+\BOOKMARK [1][-]{Section.4.Summary and discussion.1}{Summary\040and\040discussion}{}% 15
+\BOOKMARK [1][-]{Section..More technical details.1}{More\040technical\040details}{}% 16
+\BOOKMARK [1][-]{Section.A.Using BibTeX.1}{Using\040BibTeX}{}% 17
