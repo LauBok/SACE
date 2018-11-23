@@ -1,0 +1,855 @@
+\documentclass[article]{jss}
+
+%% -- LaTeX packages and custom commands ---------------------------------------
+
+%% recommended packages
+\usepackage{thumbpdf,lmodern}
+
+%% another package (only for this demo article)
+\usepackage{framed}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{threeparttable}
+\usepackage{array}
+
+%% new custom commands
+\newcommand{\class}[1]{`\code{#1}'}
+\newcommand{\fct}[1]{\code{#1()}}
+\def\ci{\perp\!\!\!\perp}
+\def\nci{\not\!\perp\!\!\!\perp}
+\def\expit{\mathrm{expit}}
+\newcommand{\transpose}[1]{#1^{\mathrm{T}}}
+
+
+%% -- Article metainformation (author, title, ...) -----------------------------
+
+%% - \author{} with primary affiliation
+%% - \Plainauthor{} without affiliations
+%% - Separate authors by \And or \AND (in \author) or by comma (in \Plainauthor).
+%% - \AND starts a new line, \And does not.
+\author{Bo Liu\thanks{Equally contributed} \\ Peking University
+   \And Zhixuan Shao$^*$ \\ Peking University
+   \And Xiaohua Zhou\thanks{Corresponding Author} \\ Peking University}
+\Plainauthor{Bo Liu, Zhixuan Shao, Xiaohua Zhou}
+
+%% - \title{} in title case
+%% - \Plaintitle{} without LaTeX markup (if any)
+%% - \Shorttitle{} with LaTeX markup (if any), used as running title
+\title{MIE: An approach to obtaining causal effect estimation in \proglang{R}}
+\Plaintitle{MIE: An approach to obtaining causal effect estimation in R}
+\Shorttitle{MIE: An approach to obtaining causal effect estimation in R}
+
+%% - \Abstract{} almost as usual
+\Abstract{
+  
+}
+
+%% - \Keywords{} with LaTeX markup, at least one required
+%% - \Plainkeywords{} without LaTeX markup (if necessary)
+%% - Should be comma-separated and in sentence case.
+\Keywords{causal effect, survival, treatment, substitution variable, \proglang{R}}
+\Plainkeywords{causal effect, survival, treatment, substitution variable, R}
+
+%% - \Address{} of at least one author
+%% - May contain multiple affiliations for each author
+%%   (in extra lines, separated by \emph{and}\\).
+%% - May contain multiple authors for the same affiliation
+%%   (in the same first line, separated by comma).
+\Address{
+  Xiaohua Zhou\\
+  Professor\\
+  Beijing International Center for Mathematical Research\\
+  Peking University \\
+  5 Yiheyuanlu Road \\
+  100871 Beijing, China\\
+  E-mail: \email{azhou@bicmr.pku.edu.cn}\\
+  URL: \url{http://faculty.washington.edu/azhou}
+}
+
+\begin{document}
+
+
+%% -- Introduction -------------------------------------------------------------
+
+%% - In principle "as usual".
+%% - But should typically have some discussion of both _software_ and _methods_.
+%% - Use \proglang{}, \pkg{}, and \code{} markup throughout the manuscript.
+%% - If such markup is in (sub)section titles, a plain text version has to be
+%%   added as well.
+%% - All software mentioned should be properly \cite-d.
+%% - All abbreviations should be introduced.
+%% - Unless the expansions of abbreviations are proper names (like "Journal
+%%   of Statistical Software" above) they should be in sentence case (like
+%%   "generalized linear models" below).
+
+\section[Introduction: Count data regression in R]{Introduction} \label{sec:intro}
+
+
+Researches regarding causal effect allure much attention of statisticians due to its various applications in scholarship as well as industry. In the field of biostatistics, one essential application is to determine the causal effect on outcomes a specific treatment may exert. However, the distinguishing charisteristic of ineluctable deaths among the examinees may possibly invalidate the identifiablity of the group we focus on, where patients will survive both with and without the treatment. A number of new methods have been proposed to eliminate the obstacle. One pertinent paper \cite{Wang2017Identification} suggests the identifiablity can be vindicated by introducing a substitution variable, and both the estimated causal effect and its asymptic variance are provided. The R package (?) is designed in light of this method.
+
+The paper is organized as follows. Section \ref{sec:model} retraces the model \cite{Wang2017Identification} used to define SACE, and Section \ref{sec:SACEEstimation} demonstrates the theoretical deduction of how to estimate SACE. Section \ref{sec:SACEAnalysis} introduces the elements in the package \pkg{mieSACE} in a detailed manner. In Section \ref{sec:Simulation}, a simulating dataset is generated and tested by the method, and an example on real data is presented in Section \ref{sec:example}.
+
+
+%% -- Manuscript ---------------------------------------------------------------
+
+%% - In principle "as usual" again.
+%% - When using equations (e.g., {equation}, {eqnarray}, {align}, etc.
+%%   avoid empty lines before and after the equation (which would signal a new
+%%   paragraph.
+%% - When describing longer chunks of code that are _not_ meant for execution
+%%   (e.g., a function synopsis or list of arguments), the environment {Code}
+%%   is recommended. Alternatively, a plain {verbatim} can also be used.
+%%   (For executed code see the next section.)
+
+\section{The Causal Effect Model} \label{sec:model}
+\subsection{Survivor Average Causal Effect(SACE)}
+
+Consider a trail for a treatment with a single follow-up visit. Let $Z$ be the exposure indicator to the treatment, i.e., $Z=1$ means the patient receives the treatment and $Z=0$ means not. Each patient may have two potential survival statuses $S(1)$ and $S(0)$, defined as whether the patient would be alive at the time of follow-up visit had the subject been exposed or not respectively. \cite{Hernan265} has defined the causal effect to be $\mathbb{E}(S(1))-\mathbb{E}(S(0))$, which indicates the difference in the probability of survival between subjects with and without treatement. \cite{rubin2006} represents with two letters L and D for 4 potential principle strata of the subjects, where L represents live and D stands for die. For example, if a person will live if treated but will die if not, he belongs to the stratum of LD. \cite{rubin2006} extends the causal effect from survival status to the outcomes observed. Similarly, we define $Y(1)$ and $Y(0)$ as the potential outcomes had the subject been exposed or not, respectively. However, these outcomes can only be observed if the subjects are still alive. Therefore, the causal effect of treatment on outcome is defined as
+%
+\begin{equation}
+  \Delta_\text{LL} = \mathbb{E}\{Y(1)-Y(0)|G=\text{LL}\}.
+  \label{eqn:sace}
+\end{equation}
+%
+This is also known as the survivor average causal effect (SACE).
+
+\subsection{Assumptions of the Model}
+
+In real experiments, it is impossible to devide the subjects in the four strata \emph{a priori}. Those alive and treated belong to strata LL or LD, while those alive but not treated belong to LL or DL. The specific stratum LL is unidentifiable.
+
+\cite{doi:10.1093/biostatistics/kxl027} assumes that
+%
+\begin{equation}
+  S(1) \geq S(0) ~\text{a.s.}
+  \label{ass:1}
+\end{equation}
+%
+Let $W$ be the covariates of subjects, and \cite{doi:10.1093/biomet/70.1.41} referred as "strong ignorability of treatment assignment" to the assumption
+%
+\begin{equation}
+  Z\ci S(z)|W\text{ for } z=0,1.
+  \label{ass:2}
+\end{equation}
+%
+In light of the "missing at random" assumption (\cite{doi:10.1093/biomet/63.3.581}), we have
+%
+\begin{equation}
+  Z\ci Y(z)|W, G=\text{LL}\text{ for }z=0,1.
+  \label{ass:3}
+\end{equation}
+%
+
+Let baseline covariates $W=(X,A)$ where $X$ is similar to a confounder while $A$ is a substitution variable, which satisfies the substitution and exclusion assumption (\cite{10.1515/jci-2015-0024})
+%
+\begin{equation}n
+  \begin{aligned}
+  &A\ci Y(1)|Z=1,G,X,\\
+  &A\nci G|Z=1,S=1,X,
+  \end{aligned}
+  \label{ass:4}
+\end{equation}
+%
+and the SACE (Eqn.\ref{eqn:sace}) is identifiable with assumptions Eqn.\ref{ass:1}-\ref{ass:4} on the variables (\cite{Wang2017Identification}).
+
+\subsection{Identification of SACE}
+
+We illustrate hereafter the main points in the proof by \cite{Wang2017Identification}.
+%
+\begin{equation}
+\mathbb{E}(Y(z)|G=\text{LL})=\frac{\mathbb{E}_w(\mu_{z,\text{LL},w}\cdot\pi_{\text{LL}|w})}{\mathbb{E}_w(\pi_{\text{LL}|w})},
+\label{eqn::mu}
+\end{equation}
+where $\mu_{z,g,w}=\mathbb{E}(Y(z)|G=g,W=w)$ and $\pi_{g|w}=\mathbb{P}(G=g|W=w)$.
+
+Under Eqn.\ref{ass:3}, 
+\begin{equation}
+\mu_{z,g,w}=\mathbb{E}(Y(z)|Z=z,G=g,W=w)=\mathbb{E}(Y|Z=z,G=g,W=w).
+\end{equation}
+
+Under Eqn.\ref{ass:1} and Eqn.\ref{ass:2},
+\begin{equation}
+  \pi_{\text{LL}|w}=\mathbb{P}(S(0)=1,S(1)=1|W=w)=\mathbb{P}(S(0)=1|W=w)=\mathbb{P}(S=1|Z=0,W=w).
+\end{equation}
+\begin{equation}
+  \pi_{\text{LD}|w}=\mathbb{P}(S(0)=0,S(1)=1|W=w)=\mathbb{P}(S=1|Z=1,W=w)-\mathbb{P}(S=1|Z=0,W=w).
+\end{equation}
+From Eqn.\ref{eqn::mu},
+\begin{equation}
+  \mu_{0,\text{LL},w} = \mathbb{E}(Y|Z=0,S=1,W=w).
+\end{equation}
+Since $Y,Z,S$ and $W$ are all observable from the data, $\pi_{\text{LL}|w}$, $\pi_{\text{LD}|w}$ and $\mu_{0,\text{LL},w}$ are identifiable.
+
+Denote $W$ in the form of $(X,A)$, and define
+\begin{equation}
+  p_{g|z,x,a,s}=\frac{\mathbb{P}(G=g|X=x,A=a)}{\mathbb{P}(S=s|Z=z,X=x,A=a)}.
+\end{equation}
+It can be proven that under Eqn.\ref{ass:4},
+\begin{equation}
+  \mathbb{E}(Y|Z=1,S=1,X=x,A=a)=p_{\text{LL}|1,x,a,1}\mu_{1,\text{LL},x}+(1-p_{\text{LL},1,x,a,1})\mu_{1,\text{LD},x}.
+  \label{eqn::eqn}
+\end{equation}
+For $\forall x$, there exist different $a_1$ and $a_2$ satisfying Eqn.\ref{eqn::eqn} (under Eqn.\ref{ass:4}), and thus $\mu_{1,\text{LL},x}$ can be identified.
+
+\subsection{Model Parameterization}\label{subsec:ModelParameterization}
+For simplicity, we use (generalized) linear model as our assumption.
+
+\begin{equation}
+  \mu_{0,\text{LL},W} = \mathbb{E}(Y|Z=0,S=1,X,A) = \alpha_{10} + X\alpha_{11}+A\alpha_{12}.
+\end{equation}
+\begin{equation}
+  \mu_{1,\text{L}\cdot,W} = \mathbb{E}(Y|Z=1,S(0)=L,S(1)=1,X,A) = \alpha_{20} + X\alpha_{21}+L\alpha_{22}.
+  \label{eqn::mu1}
+\end{equation}
+In Eqn.\ref{eqn::mu1}, $A$ is dropped because under Eqn.\ref{ass:4}, $A\ci Y(1)|Z=1,S(0)=L,S(1)=1,X$. $L$ is not observable when $S(1)=1$, so we need to figure out later how to estimate $L$.
+
+\begin{equation}
+  \mathbb{P}(S=1|Z=1,W) = \expit(\beta_{0}+X\beta_{1}+A\beta_2).
+\end{equation}
+\begin{equation}
+  \frac{\mathbb{P}(S=1|Z=0,W)}{\mathbb{P}(S=1|Z=1,W)} = \expit(\gamma_{0}+X\gamma_{1}+A\gamma_2).
+\end{equation}
+One can verify that these assumptions on the parameterization satisfy the requirements of the model.
+
+\section{SACE Estimation} \label{sec:SACEEstimation}
+
+\subsection{Data}
+
+The data input should include multiple observations on random variables $Z,S,Y,X$ and $A$. Suppose the $i$-th observation can be denoted by $(Z^i,S^i,Y^i,X^i,A^i)$, and they denote respectively:
+\begin{itemize}
+  \item $Z^i$: an integer valued $0$ or $1$, exposure indicator of the $i$-th subject;
+  \item $S^i$: an integer valued $0$ or $1$, survival indicator of the $i$-th subject;
+  \item $Y^i$: a numeric vector, indicating the survival outcome of the $i$-th subject;
+  \begin{itemize}
+    \item $Y^i$ is discarded where $S^i=0$.
+    \item A warning will be raised if $Y^i$ is NA where $S^i=1$.
+  \end{itemize}
+  \item $X^i$: a numeric row vector, the confounder of covariate $W$ of the $i$-th subject.
+  \item $A^i$: a numeric row vector, the substitution variable of covariate $W$ of the $i$-th subject.
+\end{itemize}
+
+Accordingly, the data type of observed data matrix $\mathbf{Z},\mathbf{S},\mathbf{Y},\mathbf{X}$ and $\mathbf{A}$ are defined as Table \ref{tbl::data}.
+\begin{table}[!htbp]
+  \centering
+  \begin{tabular}{ccc}
+    \toprule
+    Variable & Data Type & Size \\
+    \midrule
+    $\mathbf{Z}$ & Logical Column Vector & $n$ \\
+    $\mathbf{S}$ & Logical Column Vector & $n$ \\
+    $\mathbf{Y}$ & Numeric Matrix & $n\times k$ \\
+    $\mathbf{X}$ & Numeric Matrix & $n\times p$ \\
+    $\mathbf{A}$ & Numeric Matrix & $n\times q$ \\
+    \bottomrule
+  \end{tabular}
+  \label{tbl::data}
+  \caption{Data Types of Observed Variables}
+\end{table}
+
+\subsection{Parameters}
+In Sec. \ref{subsec:ModelParameterization}, we put forward four models with parameters $\alpha_0$, $\alpha_1$, $\beta$ and $\gamma$. Here we put it in the matrix form.
+
+Let
+\begin{equation}
+  \alpha_1 = \left(
+    \begin{array}{c}
+      \alpha_{10}\\
+      \alpha_{11}\\
+      \alpha_{12}\\
+    \end{array}
+  \right),
+  \alpha_2 = \left(
+    \begin{array}{c}
+      \alpha_{20}\\
+      \alpha_{21}\\
+      \alpha_{22}\\
+    \end{array}
+  \right),
+  \beta = \left(
+    \begin{array}{c}
+      \beta_0\\
+      \beta_1\\
+      \beta_2\\
+    \end{array}
+  \right),
+  \gamma = \left(
+    \begin{array}{c}
+      \gamma_0\\
+      \gamma_1\\
+      \gamma_2\\
+    \end{array}
+  \right),
+\end{equation}
+be the parameters, and let
+\begin{equation}
+  \begin{aligned}
+  \mathbf{W} &= (\mathbf{X}~~\mathbf{A}),\\
+  \widetilde{\mathbf{W}} &= (\mathbf{1}_n~~\mathbf{W}),\\
+  \widetilde{\mathbf{X}}&=(\mathbf{1}_n~~\mathbf{X}).
+  \end{aligned}
+\end{equation}
+be the observed data matrix of random variables $W$, $\widetilde{W}$ and $\widetilde{X}$ respectively, 
+then our parametric model can be rewritten as
+\begin{equation}
+  \begin{aligned}
+  \mathbb{E}(Y|Z=0,S=1,X,A)&=\widetilde{W}\alpha_1,\\
+  \mathbb{E}(Y|Z=1,S(0)=L,S(1)=1,X,A)&=(\widetilde{X}~~L)\alpha_2,\\
+  \mathbb{P}(S=1|Z=1,W) &= \expit(\widetilde{W}\beta),\\
+  \frac{\mathbb{P}(S=1|Z=0,W)}{\mathbb{P}(S=1|Z=1,W)} &= \expit(\widetilde{W}\gamma).
+  \end{aligned}
+\end{equation}
+
+
+\begin{table}[!htbp]
+  \centering
+  \begin{tabular}{ccc}
+    \toprule
+    Parameter & Data Type & Size \\
+    \midrule
+    $\alpha_1$ & Numeric Matrix & $(p+q+1)\times k$ \\
+    $\alpha_2$ & Numeric Matrix & $(p+2)\times k$ \\
+    $\beta$ & Numeric Vector & $p+q+1$\\
+    $\gamma$ & Numeric Vector & $p+q+1$\\
+    \bottomrule
+  \end{tabular}
+  \label{tbl::data}
+  \caption{Data Types of Parameters}
+\end{table}
+
+\subsection{Estimating the Parameters}
+\subsubsection{Estimating $\alpha_1$}
+Since $$\mathbb{E}(Y|Z=0,S=1,X,A)=\widetilde{W}\alpha_1,$$ we apply the ordinary least square method (OLS) to estimate $\alpha_1$. Let $\mathbf{Y}_{01}$ and $\widetilde{\mathbf{W}}_{01}$ be the observed data of $Y$ and $\widetilde{W}$ in the subset where $Z=0$ and $S=1$, and the estimator of $\alpha_1$ can be
+%
+\begin{equation}
+\widehat{\alpha}_1=(\transpose{\widetilde{\mathbf{W}}_{01}}\widetilde{\mathbf{W}}_{01})^{-1}\transpose{\widetilde{\mathbf{W}}_{01}}\mathbf{Y}_{01}.
+\end{equation}
+%
+
+\subsubsection{Estimating $\alpha_2$}
+It may be natural to apply here the same method how we estimate $\alpha_1$, but it can be rather tricky because $L$ is not observable.
+By doing simple algebra, one can avoid the problem by taking expectation over $L$.
+
+\begin{equation}
+  \begin{aligned}
+    \mathbb{E}(Y|Z=1,S(1)=1,X,A)=&\mathbb{E}(Y|Z=1,S(0)=0,S(1)=1,X,A)
+    \mathbb{P}(S(0)=0|Z=1,S(1)=1,W)\\
+    &+\mathbb{E}(Y|Z=1,S(0)=1,S(1)=1,X,A)\mathbb{P}(S(0)=1|Z=1,S(1)=1,W)\\
+    =&(\widetilde{X}~~0)\alpha_2\mathbb{P}(S(0)=0|Z=1,S(1)=1,W)\\
+    &+(\widetilde{X}~~1)\alpha_2\mathbb{P}(S(0)=1|Z=1,S(1)=1,W)\\
+    =&(\widetilde{X}~~\mathbb{P}(S(0)=1|Z=1,S(1)=1,W))\\
+    =&\left(\widetilde{X}~~\frac{\mathbb{P}(S=1|Z=0,W)}{\mathbb{P}(S=1|Z=1,W)}\right) \\
+    =&\left(\widetilde{X}~~\expit(\widetilde{W}\gamma)\right).
+  \end{aligned}
+\end{equation}
+
+Let $\mathbf{Y}_{11}$, $\widetilde{\mathbf{X}}_{11}$ and $\widetilde{\mathbf{W}}_{11}$ be the observed data of $Y$, $\widetilde{X}$ and $\widetilde{W}$ in the subset where $Z=1$ and $S=1$, $\widehat{\gamma}$ be the estimator of $\gamma$. Denote $\widetilde{\mathbf{XL}}_{11}=\left(\widetilde{\mathbf{X}}_{11}~~\expit(\widetilde{\mathbf{W}}_{11}\widehat{\gamma})\right)$, and the estimator of $\alpha_2$ can be
+%
+\begin{equation}
+\widehat{\alpha}_2=(\transpose{\widetilde{\mathbf{XL}}_{11}}\widetilde{\mathbf{XL}}_{11})^{-1}\transpose{\widetilde{\mathbf{XL}}_{11}}\mathbf{Y}_{11}.
+\end{equation}
+%
+
+\subsubsection{Estimating $\beta$ and $\gamma$}
+Note that the model involving $\beta$ and $\gamma$ is equivalent to 
+\begin{equation}
+  \begin{aligned}
+    S|Z=1,W&\sim \mathcal{B}(1,\expit(\widetilde{W}\beta)),\\
+    S|Z=0,W&\sim \mathcal{B}(1,\expit(\widetilde{W}\beta)\expit(\widetilde{W}\gamma)).
+  \end{aligned}
+\end{equation}
+
+Define
+\begin{equation}
+  \begin{aligned}
+  L(\beta,\gamma|z,s,w) &= \mathbb{P}(S=s|\beta,\gamma,Z=z,W=w) \\
+  &=\left\{
+  \begin{aligned}
+    &\expit(\widetilde{w}\beta), &z=1,s=1 \\
+    &1-\expit(\widetilde{w}\beta),&z=1,s=0 \\
+    &\expit(\widetilde{w}\beta)\expit(\widetilde{w}\gamma),&z=0,s=1 \\
+    &1-\expit(\widetilde{w}\beta)\expit(\widetilde{w}\gamma).&z=0,s=0\\
+  \end{aligned}
+  \right.
+  \end{aligned}
+\end{equation}
+and
+\begin{equation}
+  \begin{aligned}
+    D_\beta L(\beta,\gamma|z,s,w) &= \frac{\partial}{\partial\beta}\ln L(\beta,\gamma|z,s,w) \\
+    &=\left\{
+    \begin{aligned}
+      &(1-\expit(\widetilde{w}\beta))\widetilde{w}, &z=1,s=1 \\
+      &-\expit(\widetilde{w}\beta)\widetilde{w},&z=1,s=0 \\
+      &(1-\expit(\widetilde{w}\beta))\widetilde{w},&z=0,s=1 \\
+      &-\frac{(1-\expit(\widetilde{w}\beta))}{\expit^{-1}(\widetilde{w}\beta)\expit^{-1}(\widetilde{w}\gamma)-1}\widetilde{w}.&z=0,s=0\\
+    \end{aligned}
+    \right.
+    \end{aligned}
+\end{equation}
+\begin{equation}
+  \begin{aligned}
+    D_\gamma L(\beta,\gamma|z,s,w) &= \frac{\partial}{\partial\gamma}\ln L(\beta,\gamma|z,s,w) \\
+    &=\left\{
+    \begin{aligned}
+      &0, &z=1\\
+      &(1-\expit(\widetilde{w}\gamma))\widetilde{w},&z=0,s=1 \\
+      &-\frac{(1-\expit(\widetilde{w}\gamma))}{\expit^{-1}(\widetilde{w}\beta)\expit^{-1}(\widetilde{w}\gamma)-1}\widetilde{w}.&z=0,s=0\\
+    \end{aligned}
+    \right.
+    \end{aligned}
+\end{equation}
+
+Using maximum likelihood estimation,
+\begin{equation}
+  (\widehat\beta,\widehat\gamma) = \arg\max\sum_{i=1}^n\ln L(\beta,\gamma|z^i,s^i,w^i).
+\end{equation}
+
+\subsection{Estimating SACE}
+
+With regards to Eqn.\ref{eqn::mu}, SACE is defined as
+\begin{equation}
+  \begin{aligned}
+  \Delta_{\text{LL}} &= \frac{\mathbb{E}_w(\mu_{1,\text{LL},w}\cdot\pi_{\text{LL}|w})}{\mathbb{E}(\pi_{\text{LL}|w})}- \frac{\mathbb{E}_w(\mu_{0,\text{LL},w}\cdot\pi_{\text{LL}|w})}{\mathbb{E}(\pi_{\text{LL}|w})}\\
+  &\triangleq \mu_{1,\text{LL}}-\mu_{0,\text{LL}}.
+  \end{aligned}
+\end{equation}
+
+To estimate $\Delta_{\text{LL}}$, we use the empirical distribution of $W$, and
+\begin{equation}
+  \widehat{\mu}_{\cdot,\text{LL}} = \frac{\sum_{i=1}^n(\hat{\mu}_{\cdot,\text{LL},w_i}\cdot\widehat{\pi}_{\text{LL}|w_i})}{\sum_{i=1}^n\widehat{\pi}_{\text{LL}|w_i}}.
+\end{equation}
+
+For simplicity, we define $\mathrm{unit}(\alpha)$ to be the vector parallel to $\alpha$ which has all its elements summed up to $1$, and the estimation of $\mu_{\cdot,\text{LL}}$ has a rather simple expression
+\begin{equation}
+  \widehat{\mu}_{\cdot,\text{LL}}=\sum_{i=1}^n\widehat{\mu}_{\cdot,\text{LL},w_i}\cdot\mathrm{unit}\left(\widehat{\pi}_{\text{LL}|w_i}\right).
+\end{equation}
+
+Let $\widehat{\mu}_{\cdot,\text{LL},\mathbf{W}}$ be a matrix whose $i$-th row equals $\widehat{\mu}_{\cdot,\text{LL},w_i}$, and $\widehat{\pi}_{\text{LL}|\mathbf{W}}$ be a column vector composed of $\widehat{\pi}_{\text{LL}|w_i}$.
+\begin{equation}
+  \widehat{\mu}_{\cdot,\text{LL}} = \mathrm{unit}(\transpose{\widehat{\pi}_{\text{LL}|\mathbf{W}}})\cdot\widehat{\mu}_{\cdot,\text{LL},\mathbf{W}}.
+\end{equation}
+
+Using the notations forementioned,
+\begin{equation}
+  \widehat{\pi}_{\text{LL}|\mathbf{W}} = \expit(\widetilde{\mathbf{W}}\widehat{\beta})\expit(\widetilde{\mathbf{W}}\widehat{\gamma}),
+\end{equation}
+where the multiplication should be operated element-wise.
+\begin{equation}
+  \widehat{\mu}_{0,\text{LL}|\mathbf{W}} = \widetilde{\mathbf{W}}\widehat{\alpha}_1.
+\end{equation}
+\begin{equation}
+  \widehat{\mu}_{1,\text{LL}|\mathbf{W}} = (\widetilde{\mathbf{X}}~~\mathbf{1}_n)\widehat{\alpha}_2.
+\end{equation}
+Thus we are able to estimate the SACE
+\begin{equation}
+  \widehat{\Delta}_\text{LL} = \widehat{\mu}_{1,\text{LL}}-\widehat{\mu}_{0,\text{LL}}.
+\end{equation}
+
+\section{SACE Analysis} \label{sec:SACEAnalysis}
+
+The \proglang{R} package of \pkg{mieSACE} is written in an pseudo-object-oriented form in order that it should be easy to use and at the same time, efficient. This is realized by the function \code{SACE} which returns a list of public functions.
+
+To establish a SACE object, one need to provide some or all of the $6$ parameters shown in Table \ref{tbl::sacepar}.
+
+\begin{table}[!htbp]
+  \centering
+  \begin{tabular}{cccc}
+    \toprule
+    Parameter & Data Type & Nullable & Description \\
+    \midrule
+    \code{Z} & Logical Vector & No & Was the subject exposed to treatment?\\
+    \code{S} & Logical Vector & No & Did the subject survive to observation?\\
+    \code{Y} & Numeric Matrix & No & The outcomes on observation\\
+    \code{X} & Numeric Matrix & Yes & The confounders of the subject at baseline \\
+    \code{A} & Numeric Matrix & Yes & The substitution variable satisfying Eqn.\ref{ass:4} \\
+    \code{subset} & Logical Vector & Yes & Indicating the subjects to be included\\
+    \bottomrule
+  \end{tabular}
+  \label{tbl::sacepar}
+  \caption{Parameters of \code{SACE}}
+\end{table}
+
+The function \code{SACE} returns a list of $20$ functions for users to manicipate the data and obtain results in a simple and safe way (Table \ref{tbl::sacereturn}).
+
+\begin{table}[!htbp]
+  \centering
+  \begin{threeparttable}
+  \begin{tabular}{ccc}
+    \toprule
+    Type & Function Name &  Description \\
+    \midrule
+    \multirow{3}{*}{Get} & \code{Get*}\tnote{1} & Return \code{private.*} as read-only \\
+    & \code{GetSubset} & Return \code{private.subset} as read-only \\
+    & \code{Get*Subset} & 
+    Return a subset of \code{private.*} as read-only \\
+    \midrule
+    \multirow{3}{*}{Set\tnote{2}} & \code{Set*} & Set \code{private.*}\\
+    & \code{SetSubset} & Set \code{private.subset} \\
+    & \code{UnsetSubset} & Set \code{private.subset} to \code{NULL}\\
+    \midrule
+    & \code{MIE} & Return a list indicating the result of SACE estimation\\
+    & \code{ConfInt} & Return the confident interval of estimated SACE\\
+    \bottomrule
+    \end{tabular}
+    \begin{tablenotes}
+      \footnotesize
+      \item[1] \code{*} can be \code{Z}, \code{S}, \code{Y}, \code{X} or \code{A}.
+      \item[2] All the Set functions are implemented with certain data type checks.
+    \end{tablenotes}
+  \end{threeparttable}
+  \label{tbl::sacereturn}
+  \caption{Returned functions of \code{SACE}}
+\end{table}
+
+It is simple to establish a SACE object using \code{SACE}. To illustrate it, we first generate random data as our input parameters, namely \code{Z}, \code{S}, \code{Y}, \code{X}, \code{A}, \code{subset}.
+\begin{CodeChunk}
+  \begin{CodeInput}
+R> NUM_SUBJECTS <- 60
+R> Z <- rbinom(NUM_SUBJECTS, 1, 0.7)
+R> S <- rbinom(NUM_SUBJECTS, 1, 0.6)
+R> Y <- matrix(rnorm(NUM_SUBJECTS * 3, 0, 1), nrow = NUM_SUBJECTS)
+R> X <- matrix(rnorm(NUM_SUBJECTS * 5, 0, 1), nrow = NUM_SUBJECTS)
+R> A <- rnorm(NUM_SUBJECTS, 0, 1)
+  \end{CodeInput}
+\end{CodeChunk}
+And we stablish a corresponding SACE object by
+\begin{CodeChunk}
+  \begin{CodeInput}
+R> sace.obj <- SACE(Z, S, Y, X, A)
+  \end{CodeInput}
+\end{CodeChunk}
+
+\subsection{How is the data stored?}
+In the function \code{SACE}, some variables are defined with names like \code{private.Z}, and we actually store the parameter \code{Z} there on call of \code{SACE}. In order to be support read and write operations, these variables are indeed defined in the outer environment of the function (which may be directly manicipate upon outside the function). The modifying word \textit{private} should always recommend the users visit these variables through provided functions.
+
+Assume that we have to increase \code{Y} by $1$ due to some scaling concerns, we can update \code{sace.obj} instead of creating a new object.
+
+\begin{CodeChunk}
+  \begin{CodeInput}
+R> sace.obj$SetY(Y + 1)
+  \end{CodeInput}
+\end{CodeChunk}
+
+To limit the calculation on only the first $5$ subjects, we can set the subset by
+\begin{CodeChunk}
+  \begin{CodeInput}
+R> sace.obj$SetSubset(1:NUM_SUBJECTS <= 5)
+  \end{CodeInput}
+\end{CodeChunk}
+and view their outcomes.
+\begin{CodeChunk}
+  \begin{CodeInput}
+R> sace.obj$GetYSubset()
+  \end{CodeInput}
+  \begin{CodeOutput}
+          [,1]      [,2]      [,3]
+[1,] 0.7733092 2.2316216 0.8320438
+[2,] 0.9861842 0.2492520 0.6805767
+[3,] 0.8744999 1.2124410 1.0647277
+[4,] 2.0399051 0.7039607 0.3285627
+[5,] 1.5003603 1.0102448 2.8764985
+  \end{CodeOutput}
+\end{CodeChunk}
+
+\subsection{Data Type and Restrictions Check}
+Our model includes numbers of derived variables from given input, such as $\tilde{W} = (\mathbf{1}_n~~X~~A)$ as mentioned before. If we design as a function of $X$ and $A$ the process of calculating $\tilde{W}$, we may have to do the computation again each time we need $\tilde{W}$, which could be rather time-consuming. If we otherwise, define $\tilde{W}$ as variable, there may be problems when the value of $\tilde{W}$ does not coincide with that of $(\mathbf{1}_n~~X~~A)$, which probably happens when $X$ is changed without updating $\tilde{W}$.
+
+We managed to solve the problem with inspiration from the concept of cache, a commonly used architecture in computer science. A boolean variable \code{private.checked} is designed to indicate whether some "caches" (all with "check" in their names) are still valid. Once the original data has changed, \code{private.checked} is set \code{FALSE} indicating the caches may be implausible. When a function requires the the value of a particular cached variable, it first checks \code{private.checked}, and will only redo the calculation when \code{private.checked} is \code{FALSE}. If the calculation succeeds, the caches should be updated, and \code{private.checked} should be reset \code{TRUE}.
+
+The caches are updated in function \code{private.check}, with certain data type and restriction checks previously. These checks includes size checks(whether the matrices have proper size for addition or multiplication), NA checks(whether a matrix can have NA values inside) and some restriction checks.
+
+\subsection{Estimating SACE and its confident interval}
+
+One can obtain the estimated SACE through function \code{MIE}, which is quite simple to use.
+
+\begin{CodeChunk}
+  \begin{CodeInput}
+R> mie <- sace.obj$MIE()
+  \end{CodeInput}
+\end{CodeChunk}
+
+The return value is a list of $6$ elements among which the most important two are \code{sace} and \code{estimate}.
+
+\begin{CodeChunk}
+  \begin{CodeInput}
+R> mie$sace
+  \end{CodeInput}
+  \begin{CodeOutput}
+[1]  0.3774153 -0.4699400  0.0484997
+  \end{CodeOutput}
+\end{CodeChunk}
+
+\begin{CodeChunk}
+  \begin{CodeInput}
+R> mie$estimate
+  \end{CodeInput}
+  \begin{CodeOutput}
+$alpha1.estimate
+           [,1]       [,2]        [,3]
+[1,]  0.6859891  1.0895737  0.82491572
+[2,]  0.3610506 -0.2503188  0.18028269
+[3,]  0.1270728 -0.1378440 -0.41900916
+[4,] -0.3806892  0.2237894  0.36467945
+[5,] -0.1758697  0.5373655 -0.02100811
+[6,] -0.6007420 -0.1115998  0.34522913
+[7,] -0.5808966  0.3598921  0.27266321
+
+$alpha2.estimate
+            [,1]        [,2]       [,3]
+[1,] -1.57489345  1.26644065  1.3354401
+[2,]  0.07001789  0.05115594 -0.2451194
+[3,] -0.01509677  0.12985987 -0.0248238
+[4,] -0.26250149  0.12282619  0.0194298
+[5,]  0.23341392 -0.14980854 -0.2675334
+[6,]  0.35501926  0.20347317  0.1334751
+[7,]  2.77466962 -0.54183713 -0.3390038
+
+$beta.estimate
+[1]  0.9021380  0.2096719 -0.2572589 -0.1038979  0.2279089 -0.5438395 -0.5594817
+
+$gamma.estimate
+[1] 181.30895  37.94398 -48.07846 125.71451 -54.83176 -44.57635  41.90218
+
+$beta_gamma.convergence
+[1] 0
+
+$mu0.estimate
+[1] 0.8081135 1.1201891 0.9097668
+
+$mu1.estimate
+[1] 1.1855288 0.6502491 0.9582665
+
+  \end{CodeOutput}
+\end{CodeChunk}
+
+We added the return list class attribute "mie", and implemented a function \code{print.mie}.
+
+\begin{CodeChunk}
+  \begin{CodeInput}
+R> print(mie)
+  \end{CodeInput}
+  \begin{CodeOutput}
+Call:
+private.model1.mie(thres = thres, optim.method = optim.method, 
+    max.step = max.step, singular.ok = singular.ok, need.variance = need.variance)
+    
+sample size: 60 
+average potential outcomes among control group: 0.8081135 1.120189 0.9097668  
+average potential outcomes among treatment group: 1.185529 0.6502491 0.9582665  
+SACE (survivor average causal effect): 0.3774153 -0.46994 0.0484997  
+  \end{CodeOutput}
+\end{CodeChunk}
+
+Currently, the bootstrap method is implemented to compute confident intervals of the estimators.
+
+\begin{CodeChunk}
+  \begin{CodeInput}
+R> confint <- sace.obj$ConfInt(alpha = 0.05, print.progress = F)
+R> confint$ci
+  \end{CodeInput}
+  \begin{CodeOutput}
+           [,1]      [,2]      [,3]
+2.5%  -1.874308 -2.525785 -3.173551
+97.5%  2.430036  1.902488  2.672909
+  \end{CodeOutput}
+\end{CodeChunk}
+
+
+%% -- Illustrations ------------------------------------------------------------
+
+%% - Virtually all JSS manuscripts list source code along with the generated
+%%   output. The style files provide dedicated environments for this.
+%% - In R, the environments {Sinput} and {Soutput} - as produced by Sweave() or
+%%   or knitr using the render_sweave() hook - are used (without the need to
+%%   load Sweave.sty).
+%% - Equivalently, {CodeInput} and {CodeOutput} can be used.
+%% - The code input should use "the usual" command prompt in the respective
+%%   software system.
+%% - For R code, the prompt "R> " should be used with "+  " as the
+%%   continuation prompt.
+%% - Comments within the code chunks should be avoided - these should be made
+%%   within the regular LaTeX text.
+
+\section{Simulation} \label{sec:Simulation}
+
+We use \pkg{mieSACE} to repeat the simulation \cite{Wang2017Identification} did. Suppose $X = (X_1,X_2,X_3)$ where $X_1$ takes value $1$ and $-1$ with equal possibility and $(X_2,X_3)$ follows a multivariate normal distribution $\mathcal{N}(\mu,\Sigma)$ in which
+$$\mu = \left(
+\begin{array}{c}
+  1 \\ -1
+\end{array}  
+\right),\Sigma = 
+\left(
+\begin{array}{cc}
+  1 & 0.5 \\
+  0.5 & 1 \\
+\end{array}  
+\right).$$
+$A$ follows a Bernoulli distribution with $\mathbb{P}(A=1|X)=\expit(uX)$, where $u=(1,1,1)/2$. $Z$ is generated following a logistic model $\mathbb{P}(Z=1|X,A)=\expit(uX+A)$. The survival type $G$ satisfies that $\mathbb{P}(G=\text{LL}|X,A)=\expit(2+\beta X+A)\expit(\gamma X+A)$, $\mathbb{P}(G=\text{LD}|X,A)=\expit(2+\beta X+A)(1-\expit(\gamma X+A))$, and $\mathbb{P}(G=\text{DD}|X,A)=1-\expit(2+\beta X+A)$, where $\beta = (0.5,0.5,0.5)$ and $\gamma = (-1.5,0.5,0.5)$. The potential outcomes $Y$ is generated with conditional distribution $Y(1)|G=\text{LL},X,A\sim\mathcal{N}(uX,0.5^2)$, $Y(0)|G=\text{LL},X,A\sim\mathcal{N}(-1+uX,0.5^2)$, $Y(1)|G=\text{LD},X,A\sim\mathcal{N}(1+uX,0.5^2)$. The true value for SACE is $1$.
+
+\subsection{Generating Data}
+\begin{CodeChunk}
+  \begin{CodeInput}
+R> expit <- function(x) { exp(x) / (1 + exp(x)) }
+R> size <- 5000
+R> X1 <- sample(c(1,-1),size,prob=c(0.5,0.5),replace = T)
+R> mu <- c(1,-1)
+R> sigma <- matrix(c(1,0.5,0.5,1),2,2)
+R> X23 <- mvrnorm(size, mu, sigma)
+R> X <- cbind(X1,X23)
+R> A <- rbinom(size, 1, expit(X %*% c(0.5,0.5,0.5)))
+R> Z <- rbinom(size, 1, expit(X %*% c(0.5,0.5,0.5) + 1))
+R> S1 <- rbinom(size, 1, expit(X %*% c(0.5,0.5,0.5) + A + 2))
+R> S0 <- rbinom(size, 1, expit(X %*% c(-1.5,0.5,0.5) + A))
+R> S0[S1 == 0] <- 0
+R> S <- S1 * Z + S0 * (1 - Z)
+R> Y1LL <- rnorm(size, X %*% c(0.5,0.5,0.5), 0.5^2)
+R> Y0LL <- rnorm(size, X %*% c(0.5,0.5,0.5) - 1, 0.5^2)
+R> Y1LD <- rnorm(size, X %*% c(0.5,0.5,0.5) + 1, 0.5^2)
+R> Y1 <- S0 * Y1LL + (1 - S0) * Y1LD
+R> Y0 <- Y0LL
+R> Y <- Y1 * Z + Y0 * (1 - Z)
+R> Y[S == 0] <- NA
+  \end{CodeInput}
+\end{CodeChunk}
+
+\subsection{Calculating SACE and its $95\%$ confident interval}
+\begin{CodeChunk}
+  \begin{CodeInput}
+R> sace <- SACE(Z,S,Y,X,A)
+R> print(sace$MIE())
+  \end{CodeInput}
+  \begin{CodeOutput}
+Call:
+private.model1.mie(thres = thres, optim.method = optim.method, 
+    max.step = max.step, singular.ok = singular.ok, need.variance = need.variance)
+
+sample size: 5000 
+average potential outcomes among control group: -0.8351665  
+average potential outcomes among treatment group: 0.1825276  
+SACE (survivor average causal effect): 1.017694 
+  \end{CodeOutput}
+  \begin{CodeInput}
+R> print(sace$ConfInt(nboot=500,print.progress = F)$ci)
+  \end{CodeInput}
+  \begin{CodeOutput}
+          [,1]
+2.5%  0.913946
+97.5% 1.108069
+  \end{CodeOutput}
+\end{CodeChunk}
+
+\section{Example: SACE of ISIS 396443 on SMA patients}\label{sec:example}
+We use \pkg{mieSACE} on data collected from a study of ISIS 396443 in patients with infantile-onset SMA. Spinal muscular atrophy (SMA) is a rare neuromuscular disorder characterised by loss of lower motor neurons and progressive muscle wasting, often leading to early death(\cite{wiki:sma}). The experiment involved $121$ subjects with $80$ treated with ISIS 396443, and the number of serious respiratory events were measured upon these subjects both at screening and $394$ days afterward. The change of the number is the outcome we concern, which indicates in what extent the patients deteriorated during the period. We choose some other variables at screen time as confounders, including the age at screening, the age at first dose, sex, age at symptom onset, indicator that disease duration is longer than 12 weeks, symptoms and baseline hours of ventilator support. The number of serious respiratory events at screening is selected as the substituion variable, because it is believed to affect survival status directly but impact the outcome only indirectly. The estimated SACE is $7.406508$ with a $95\%$ confident interval of $(-0.8260246,16.8671560)$.
+
+%% -- Summary/conclusions/discussion -------------------------------------------
+
+\section{Summary and discussion} \label{sec:summary}
+
+\begin{leftbar}
+As usual \dots
+\end{leftbar}
+
+
+%% -- Optional special unnumbered sections -------------------------------------
+
+\section*{Computational details}
+
+\begin{leftbar}
+If necessary or useful, information about certain computational details
+such as version numbers, operating systems, or compilers could be included
+in an unnumbered section. Also, auxiliary packages (say, for visualizations,
+maps, tables, \dots) that are not cited in the main text can be credited here.
+\end{leftbar}
+
+The results in this paper were obtained using
+\proglang{R}~3.4.1 with the
+\pkg{MASS}~7.3.47 package. \proglang{R} itself
+and all packages used are available from the Comprehensive
+\proglang{R} Archive Network (CRAN) at
+\url{https://CRAN.R-project.org/}.
+
+
+\section*{Acknowledgments}
+
+\begin{leftbar}
+All acknowledgments (note the AE spelling) should be collected in this
+unnumbered section before the references. It may contain the usual information
+about funding and feedback from colleagues/reviewers/etc. Furthermore,
+information such as relative contributions of the authors may be added here
+(if any).
+\end{leftbar}
+
+
+%% -- Bibliography -------------------------------------------------------------
+%% - References need to be provided in a .bib BibTeX database.
+%% - All references should be made with \cite, \citet, \citep, \citealp etc.
+%%   (and never hard-coded). See the FAQ for details.
+%% - JSS-specific markup (\proglang, \pkg, \code) should be used in the .bib.
+%% - Titles in the .bib should be in title case.
+%% - DOIs should be included where available.
+
+\bibliography{refs}
+
+
+%% -- Appendix (if any) --------------------------------------------------------
+%% - After the bibliography with page break.
+%% - With proper section titles and _not_ just "Appendix".
+
+\newpage
+
+\begin{appendix}
+
+\section{More technical details} \label{app:technical}
+
+\begin{leftbar}
+Appendices can be included after the bibliography (with a page break). Each
+section within the appendix should have a proper section title (rather than
+just \emph{Appendix}).
+
+For more technical style details, please check out JSS's style FAQ at
+\url{https://www.jstatsoft.org/pages/view/style#frequently-asked-questions}
+which includes the following topics:
+\begin{itemize}
+  \item Title vs.\ sentence case.
+  \item Graphics formatting.
+  \item Naming conventions.
+  \item Turning JSS manuscripts into \proglang{R} package vignettes.
+  \item Trouble shooting.
+  \item Many other potentially helpful details\dots
+\end{itemize}
+\end{leftbar}
+
+
+\section[Using BibTeX]{Using \textsc{Bib}{\TeX}} \label{app:bibtex}
+
+\begin{leftbar}
+References need to be provided in a \textsc{Bib}{\TeX} file (\code{.bib}). All
+references should be made with \verb|\cite|, \verb|\citet|, \verb|\citep|,
+\verb|\citealp| etc.\ (and never hard-coded). This commands yield different
+formats of author-year citations and allow to include additional details (e.g.,
+pages, chapters, \dots) in brackets. In case you are not familiar with these
+commands see the JSS style FAQ for details.
+
+Cleaning up \textsc{Bib}{\TeX} files is a somewhat tedious task -- especially
+when acquiring the entries automatically from mixed online sources. However,
+it is important that informations are complete and presented in a consistent
+style to avoid confusions. JSS requires the following format.
+\begin{itemize}
+  \item JSS-specific markup (\verb|\proglang|, \verb|\pkg|, \verb|\code|) should
+    be used in the references.
+  \item Titles should be in title case.
+  \item Journal titles should not be abbreviated and in title case.
+  \item DOIs should be included where available.
+  \item Software should be properly cited as well. For \proglang{R} packages
+    \code{citation("pkgname")} typically provides a good starting point.
+\end{itemize}
+\end{leftbar}
+
+\end{appendix}
+
+%% -----------------------------------------------------------------------------
+
+
+\end{document}
